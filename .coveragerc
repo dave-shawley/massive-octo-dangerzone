@@ -1,0 +1,11 @@
+[run]
+branch = True
+
+[report]
+show_missing = True
+
+[html]
+directory = build/coverage-report
+
+[xml]
+output = build/coverage.xml

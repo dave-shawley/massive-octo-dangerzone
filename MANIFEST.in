@@ -1,0 +1,6 @@
+include Makefile
+include requirements.txt
+include dev-requirements.txt
+include test-requirements.txt
+graft doc
+graft tests
