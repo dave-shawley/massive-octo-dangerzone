@@ -4,3 +4,6 @@
    :hidden:
    :maxdepth: 2
 
+   python-api
+   internals
+
