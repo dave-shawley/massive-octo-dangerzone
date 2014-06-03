@@ -8,6 +8,12 @@ Testing
 This application suite is tested using `py.test`_ and a number of useful
 testing classes that I've come up with.
 
+.. autoclass:: tests.ActArrangeAssertTestCase
+   :members:
+
+.. autoclass:: tests.PatchingMixin
+   :members:
+
 .. autoclass:: tests.RandomValueMixin
    :members:
 
