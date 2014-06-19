@@ -1,16 +1,27 @@
 import sqlite3
 import uuid
 
+from requests import exceptions
+
 from familytree import storage
-from .. import ActArrangeAssertTestCase, PatchingMixin, TemporaryFileMixin
+from .. import (
+    ActArrangeAssertTestCase,
+    PatchingMixin,
+    RandomValueMixin,
+    TemporaryFileMixin,
+)
 
 
 class CreateStorageTestCase(
-    PatchingMixin, TemporaryFileMixin, ActArrangeAssertTestCase):
+        PatchingMixin, TemporaryFileMixin, ActArrangeAssertTestCase):
 
     @classmethod
     def arrange(cls):
         super(CreateStorageTestCase, cls).arrange()
+
+        session = cls.create_patch(
+            'familytree.storage.requests.session').return_value
+        session.get.return_value = '{"indexes":"http://example.com"}'
 
         sqlconnect = cls.create_patch('familytree.storage.sqlite3.connect')
         cls.sqlconn = sqlconnect.return_value.__enter__.return_value
@@ -106,3 +117,31 @@ class WhenCreatingDatabaseAndPeopleTableCreationFails(CreateStorageTestCase):
 
     def should_attempt_to_create_people_table(self):
         assert self.sql_was_run('create table people')
+
+
+class WhenRetrievingNeoActionsAndGetFails(
+        PatchingMixin, ActArrangeAssertTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+
+        cls.create_patch('familytree.storage.sqlite3.connect')
+        cls.create_patch('familytree.storage.StorageLayer._create_neo_labels')
+        requests = cls.create_patch('familytree.storage.requests')
+        cls.session = requests.Session.return_value
+        response = cls.session.get.return_value
+        response.raise_for_status.side_effect = exceptions.HTTPError
+
+        cls.storage = storage.StorageLayer('unused')
+
+    @classmethod
+    def action(cls):
+        cls.actions = cls.storage.neo_actions
+
+    def should_retrieve_actions_from_neo_root(self):
+        self.session.get.assert_called_once_with(
+            'http://localhost:7474/db/data')
+
+    def should_propagate_exception(self):
+        assert isinstance(self.raised_exception, exceptions.HTTPError)

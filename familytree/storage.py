@@ -16,7 +16,12 @@ compared safely for equality.  The user should not modify object
 identifiers (e.g., manipulating case).
 
 """
+import json
 import sqlite3
+
+import requests
+
+from . import urls
 
 
 class StorageLayer:
@@ -37,7 +42,21 @@ class StorageLayer:
 
     def __init__(self, store_name):
         self.db_name = '{0}.ser'.format(store_name)
+        self.session = requests.Session()
+        self.session.headers['Accept'] = 'application/json'
+        self._neo_actions = None
+
         self._create_database()
+        self._create_neo_labels()
+
+    @property
+    def neo_actions(self):
+        """Memoized dictionary of Neo4j action -> URL."""
+        if self._neo_actions is None:
+            response = self.session.get('http://localhost:7474/db/data')
+            response.raise_for_status()
+            self._neo_actions = response.json()
+        return self._neo_actions
 
     def _create_database(self):
         with sqlite3.connect(self.db_name) as connection:
@@ -69,3 +88,13 @@ class StorageLayer:
             except sqlite3.OperationalError as error:
                 if 'table people already exists' not in str(error):
                     raise
+
+    def _create_neo_labels(self):
+        response = self.session.get(self.neo_actions['indexes'])
+        labels = {info['label'] for info in response.json()}
+        if 'Person' not in labels:
+            self.session.post(
+                urls.append(self.neo_actions['indexes'], 'Person'),
+                data=json.dumps({'property_keys': ['external_id']}),
+                headers={'content-type': 'application/json'},
+            )
