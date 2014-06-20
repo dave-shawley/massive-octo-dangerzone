@@ -1,5 +1,9 @@
 from unittest import mock
 import logging
+import os
+import shutil
+import tempfile
+import uuid
 
 from faker import Faker
 
@@ -182,3 +186,46 @@ class PatchingMixin:
         patcher = mock.patch(target, *args, **kwargs)
         cls.__patchers.append(patcher)
         return patcher.start()
+
+
+class TemporaryFileMixin:
+
+    """
+    Add the ability to safely create temporary files.
+
+    This mix-in provides the :meth:`.create_temporary_file` method
+    which does precisely what it sounds like it should do.  It
+    creates temporary files that are removed when the test finishes.
+
+    """
+
+    @classmethod
+    def setup_class(cls):
+        cls.__temporary_directory = None
+        super().setup_class()
+
+    @classmethod
+    def teardown_class(cls):
+        super(TemporaryFileMixin, cls).teardown_class()
+        if cls.__temporary_directory is not None:
+            shutil.rmtree(cls.__temporary_directory)
+
+    @classmethod
+    def create_temporary_file(cls, prefix='tmp', suffix='', create_file=True):
+        """Create a new temporary file.
+
+        :param prefix: passed to :func:`tempfile.mkstemp`
+        :param suffix: passed to :func:`tempfile.mkstemp`
+        :param create_file: set this to :data:`False` if you only
+            need a unique file name
+        :return: the name of a unique file that will be removed
+            when :meth:`.teardown_class` is called
+
+        """
+        if cls.__temporary_directory is None:
+            cls.__temporary_directory = tempfile.mkdtemp()
+        if create_file:
+            return tempfile.mkstemp(
+                prefix=prefix, suffix=suffix, dir=cls.__temporary_directory)
+        file_name = '{0}{1}{2}'.format(prefix, uuid.uuid4().hex, suffix)
+        return os.path.join(cls.__temporary_directory, file_name)

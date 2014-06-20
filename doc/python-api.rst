@@ -10,3 +10,8 @@ Command Line Interface
 .. automodule:: familytree.cli.validators
    :members:
 
+Persistence Layer
+-----------------
+
+.. automodule:: familytree.storage
+   :members:

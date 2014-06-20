@@ -17,5 +17,8 @@ testing classes that I've come up with.
 .. autoclass:: tests.RandomValueMixin
    :members:
 
+.. autoclass:: tests.TemporaryFileMixin
+   :members:
+
 
 .. _py.test: http://pytest.org/
