@@ -15,6 +15,11 @@ classes for each of the backend concerns.
    :special-members: __init__
    :private-members:
 
+.. autoclass:: familytree.storage._Neo4jLayer
+   :members:
+   :special-members: __init__
+   :private-members:
+
 
 Testing
 -------
