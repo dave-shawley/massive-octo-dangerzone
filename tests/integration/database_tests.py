@@ -21,11 +21,11 @@ class WhenCreatingStorageLayer(ActArrangeAssertTestCase):
 
     @classmethod
     def annihilate(cls):
-        os.unlink(cls.storage.db_name)
+        os.unlink(cls.storage.database_name)
 
     @functools.lru_cache()
     def get_column_names(self, table_name):
-        with sqlite3.connect(self.storage.db_name) as connection:
+        with sqlite3.connect(self.storage.database_name) as connection:
             with contextlib.closing(connection.cursor()) as cursor:
                 cursor.execute('SELECT * FROM {0} LIMIT 1'.format(table_name))
                 cursor.fetchone()

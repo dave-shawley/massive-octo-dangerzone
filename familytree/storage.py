@@ -24,42 +24,48 @@ import requests
 from . import urls
 
 
-class StorageLayer:
+class _SqliteLayer:
 
     """
-    Stores objects, facts, and relationships between them.
+    Stores objects in an sqlite database.
 
-    :param str store_name: name to save storage files as
+    .. attribute:: database_name
 
-    Creating a new :class:`StorageLayer` instance will create the
-    persistence storage files if they do not exist.
-
-    .. attribute:: db_name
-
-       The name of the database as it appears on disk.
+        The name of the database as it appears on disk.
 
     """
 
-    def __init__(self, store_name):
-        self.db_name = '{0}.ser'.format(store_name)
-        self.session = requests.Session()
-        self.session.headers['Accept'] = 'application/json'
-        self._neo_actions = None
+    def __init__(self, *args, database_name, **kwargs):
+        """Initialze the layer and create the database.
 
+        :keyword str database_name: name of the database as it
+            appears on disk
+
+        When the ``SqliteLayer`` instance is created, the persistence
+        file is created and initialized via a call to
+        :meth:`._create_database`
+
+        .. note::
+
+            Additional positional and keyword arguments are
+            passed along to ``super().__init__()``.
+
+        """
+        self.database_name = database_name
+        super().__init__(*args, **kwargs)
         self._create_database()
-        self._create_neo_labels()
-
-    @property
-    def neo_actions(self):
-        """Memoized dictionary of Neo4j action -> URL."""
-        if self._neo_actions is None:
-            response = self.session.get('http://localhost:7474/db/data')
-            response.raise_for_status()
-            self._neo_actions = response.json()
-        return self._neo_actions
 
     def _create_database(self):
-        with sqlite3.connect(self.db_name) as connection:
+        """Create and initialize the database.
+
+        This method creates the database file if it does not exist
+        and ensures that the necessary tables exists.  It is called
+        during initialization so there no reason to call this method
+        unless you want to ensure that the structure exists at some
+        other time.
+
+        """
+        with sqlite3.connect(self.database_name) as connection:
             try:
                 connection.execute('''
                     CREATE TABLE source (
@@ -89,7 +95,71 @@ class StorageLayer:
                 if 'table people already exists' not in str(error):
                     raise
 
+
+class _Neo4jLayer:
+
+    """
+    Store relationships in a graph database.
+
+    .. attribute:: neo4j_actions
+
+       A dictionary that maps Neo4j actions to the URLs necessary
+       to invoke them.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the layer and ensure that labels exist.
+
+        The :meth:`._create_neo_labels` method is called during
+        initializing to ensure that the labels exist.
+
+        .. note::
+
+           The additional positional and keyword parameters are
+           passed on to ``super().__init__()``.
+
+        """
+        super().__init__(*args, **kwargs)
+        self.session = requests.Session()
+        self.session.headers['Accept'] = 'application/json'
+        self._neo_actions = None
+        self._create_neo_labels()
+
+    @property
+    def neo_actions(self):
+        """Memoized dictionary of Neo4j action -> URL.
+
+        .. code-block:: json
+
+            {
+                "batch": "http://localhost:7474/db/data/batch",
+                "constraints":
+                  "http://localhost:7474/db/data/schema/constraint",
+                "cypher": "http://localhost:7474/db/data/cypher",
+                "extensions": {},
+                "extensions_info": "http://localhost:7474/db/data/ext",
+                "indexes": "http://localhost:7474/db/data/schema/index",
+                "neo4j_version": "2.0.3",
+                "node": "http://localhost:7474/db/data/node",
+                "node_index": "http://localhost:7474/db/data/index/node",
+                "node_labels": "http://localhost:7474/db/data/labels",
+                "relationship_index":
+                  "http://localhost:7474/db/data/index/relationship",
+                "relationship_types":
+                  "http://localhost:7474/db/data/relationship/types",
+                "transaction": "http://localhost:7474/db/data/transaction"
+            }
+
+        """
+        if self._neo_actions is None:
+            response = self.session.get('http://localhost:7474/db/data')
+            response.raise_for_status()
+            self._neo_actions = response.json()
+        return self._neo_actions
+
     def _create_neo_labels(self):
+        """Ensure that the labels exist."""
         response = self.session.get(self.neo_actions['indexes'])
         labels = {info['label'] for info in response.json()}
         if 'Person' not in labels:
@@ -98,3 +168,23 @@ class StorageLayer:
                 data=json.dumps({'property_keys': ['external_id']}),
                 headers={'content-type': 'application/json'},
             )
+
+
+class StorageLayer(_Neo4jLayer, _SqliteLayer):
+
+    """
+    Stores objects, facts, and relationships between them.
+
+    :param str store_name: name to save storage files as
+
+    Creating a new :class:`StorageLayer` instance will create the
+    persistence storage files if they do not exist.
+
+    .. attribute:: database_name
+
+       The name of the database as it appears on disk.
+
+    """
+
+    def __init__(self, store_name):
+        super().__init__(database_name='{0}.ser'.format(store_name))

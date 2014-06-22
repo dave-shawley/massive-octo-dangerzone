@@ -80,7 +80,7 @@ class ActArrangeAssertTestCase:
     """Captures any exception raised by ``action``."""
 
     @classmethod
-    def setup_class(cls):
+    def setup_class(cls):  # pragma nocover
         """The heart of this testing pattern.
 
         The trick to having actions executed exactly once is to do
@@ -135,7 +135,7 @@ class ActArrangeAssertTestCase:
         pass
 
     @classmethod
-    def action(cls):
+    def action(cls):  # pragma nocover
         """Perform the action under test.
 
         Concrete test class MUST implement this method.  It should
@@ -188,7 +188,7 @@ class PatchingMixin:
         return patcher.start()
 
 
-class TemporaryFileMixin:
+class TemporaryFileMixin:  # pragma nocover
 
     """
     Add the ability to safely create temporary files.
