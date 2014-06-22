@@ -2,13 +2,14 @@ from unittest import mock
 import json
 import uuid
 
+from requests import exceptions
 import responses
 
 from familytree import storage
-from .. import ActArrangeAssertTestCase, PatchingMixin, TemporaryFileMixin
+from ... import ActArrangeAssertTestCase, PatchingMixin, TemporaryFileMixin
 
 
-class RequestMixin:
+class RequestMixin:  # pragma nocover
 
     @classmethod
     def arrange(cls):
@@ -67,7 +68,7 @@ class RequestMixin:
 
 
 class CreateStorageLayerTestCase(
-        RequestMixin, PatchingMixin, ActArrangeAssertTestCase):
+        RequestMixin, ActArrangeAssertTestCase):
 
     @classmethod
     def arrange(cls):
@@ -76,11 +77,10 @@ class CreateStorageLayerTestCase(
             'GET', 'http://localhost:7474/db/data',
             {'indexes': 'http://index-url/'},
         )
-        cls.create_patch('familytree.storage.sqlite3.connect')
 
     @classmethod
     def action(cls):
-        cls.storage = storage.StorageLayer(mock.sentinel.storage_name)
+        cls.storage = storage._Neo4jLayer()
 
     def should_get_neo_action_list(self):
         self.assert_that_http_request_made(
@@ -103,3 +103,31 @@ class WhenCreatingStorageAndPersonLabelIsMissing(CreateStorageLayerTestCase):
             method='POST',
             body={'property_keys': ['external_id']},
         )
+
+
+class WhenRetrievingNeoActionsAndGetFails(
+        PatchingMixin, ActArrangeAssertTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.create_patch('familytree.storage._Neo4jLayer._create_neo_labels')
+        requests = cls.create_patch('familytree.storage.requests')
+        cls.session = requests.Session.return_value
+        cls.response = cls.session.get.return_value
+        cls.response.raise_for_status.side_effect = exceptions.HTTPError
+        cls.storage = storage._Neo4jLayer()
+
+    @classmethod
+    def action(cls):
+        cls.actions = cls.storage.neo_actions
+
+    def should_fetch_action_list(self):
+        self.session.get.assert_called_once_with(
+            'http://localhost:7474/db/data')
+
+    def should_raise_for_error_status(self):
+        self.response.raise_for_status.assert_called_once_with()
+
+    def should_propagate_exception(self):
+        assert isinstance(self.raised_exception, exceptions.HTTPError)
