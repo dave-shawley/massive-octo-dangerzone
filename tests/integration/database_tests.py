@@ -1,30 +1,19 @@
 import contextlib
 import functools
-import os
 import sqlite3
-import uuid
 
 from familytree import storage
 
-from . import Neo4jTestingMixin
+from . import Neo4jTestingMixin, SqliteLayerTestingMixin
 from .. import ActArrangeAssertTestCase
 
 
 class WhenCreatingStorageLayer(
-        Neo4jTestingMixin, ActArrangeAssertTestCase):
-
-    @classmethod
-    def arrange(cls):
-        super().arrange()
-        cls.store_name = uuid.uuid4().hex
+        Neo4jTestingMixin, SqliteLayerTestingMixin, ActArrangeAssertTestCase):
 
     @classmethod
     def action(cls):
         cls.storage = storage.StorageLayer(cls.store_name)
-
-    @classmethod
-    def annihilate(cls):
-        os.unlink(cls.storage.database_name)
 
     @functools.lru_cache()
     def get_column_names(self, table_name):

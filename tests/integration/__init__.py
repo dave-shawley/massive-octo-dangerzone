@@ -1,3 +1,6 @@
+import os
+import uuid
+
 import requests
 
 from familytree import storage
@@ -67,3 +70,26 @@ class Neo4jTestingMixin(InfectiousMixin):
         while cls._cleanups:
             action, args, kwargs = cls._cleanups.pop()
             action(*args, **kwargs)
+
+
+class SqliteLayerTestingMixin:
+
+    """
+    Remove a testing database when tests finish.
+    """
+
+    @classmethod
+    def arrange(cls):
+        """Generates :attr:`store_name`"""
+        super().arrange()
+        cls.store_name = uuid.uuid4().hex
+        cls.storage = None
+
+    @classmethod
+    def annihilate(cls):
+        """Removes the database if it exists."""
+        super().annihilate()
+        db_path = (cls.storage.database_name if cls.storage is not None
+                   else '{0}.ser'.format(cls.store_name))
+        if os.path.exists(db_path):
+            os.unlink(db_path)
