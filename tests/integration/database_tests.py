@@ -5,10 +5,13 @@ import sqlite3
 import uuid
 
 from familytree import storage
+
+from . import Neo4jTestingMixin
 from .. import ActArrangeAssertTestCase
 
 
-class WhenCreatingStorageLayer(ActArrangeAssertTestCase):
+class WhenCreatingStorageLayer(
+        Neo4jTestingMixin, ActArrangeAssertTestCase):
 
     @classmethod
     def arrange(cls):

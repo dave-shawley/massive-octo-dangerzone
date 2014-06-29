@@ -41,4 +41,7 @@ testing classes that I've come up with.
 .. autoclass:: tests.InfectiousMixin
    :members:
 
+.. autoclass:: tests.integration.Neo4jTestingMixin
+   :members:
+
 .. _py.test: http://pytest.org/
