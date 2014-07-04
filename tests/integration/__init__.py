@@ -1,5 +1,6 @@
 import os
 import uuid
+import urllib.parse
 
 import requests
 
@@ -43,6 +44,8 @@ class Neo4jTestingMixin(InfectiousMixin):
 
     """
 
+    NEO4J_ROOT = 'http://localhost:7474/'
+
     @classmethod
     def arrange(cls):
         super().arrange()
@@ -70,6 +73,14 @@ class Neo4jTestingMixin(InfectiousMixin):
         while cls._cleanups:
             action, args, kwargs = cls._cleanups.pop()
             action(*args, **kwargs)
+
+    def ask_neo(self, url_path, **kwargs):
+        url = urllib.parse.urljoin(self.NEO4J_ROOT, url_path)
+        kwargs.setdefault('headers', {})
+        kwargs['headers']['Accept'] = 'application/json; charset=utf-8'
+        response = self._session.get(url, **kwargs)
+        assert response.ok
+        return response.json()
 
 
 class SqliteLayerTestingMixin:

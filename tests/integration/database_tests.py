@@ -38,6 +38,11 @@ class WhenCreatingStorageLayer(
         assert 'last_name' in self.get_column_names('people')
         assert 'gender' in self.get_column_names('people')
 
+    def should_create_person_label(self):
+        links = self.ask_neo('/db/data')
+        index_list = self.ask_neo(links['indexes'])
+        assert 'Person' in {info['label'] for info in index_list}
+
 
 class WhenCreatingStorageLayerAndDatabaseFileExists(WhenCreatingStorageLayer):
 
