@@ -102,5 +102,5 @@ class SqliteLayerTestingMixin:
         super().annihilate()
         db_path = (cls.storage.database_name if cls.storage is not None
                    else '{0}.ser'.format(cls.store_name))
-        if os.path.exists(db_path):
+        if os.path.exists(db_path):  # pragma nocover
             os.unlink(db_path)
