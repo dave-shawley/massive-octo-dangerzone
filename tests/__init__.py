@@ -24,14 +24,36 @@ class RandomValueMixin:
     """
 
     _factory = Faker()
+
     last_random = None
     """The last random value generated."""
+
+    _named_values = {}
+
+    @classmethod
+    def get_generated_string(cls, value_name=None):
+        """Get a named randomly generated string.
+
+        :param str value_name: optional name to assign to the
+            generated value
+
+        If `value_name` is specified, then future calls to this
+        method with the same name will result in the same value
+        being returned.  This is useful if you need to generate
+        several random strings and refer to their values later.
+
+        """
+        random_value = cls._factory.pystr()
+        if value_name is not None:
+            random_value = cls._named_values.setdefault(
+                value_name, random_value)
+        cls.last_random = random_value
+        return cls.last_random
 
     @property
     def random_string(self):
         """A new random string."""
-        self.last_random = self._factory.pystr()
-        return self.last_random
+        return self.get_generated_string()
 
     @property
     def random_int(self):
