@@ -82,6 +82,9 @@ class ActArrangeAssertTestCase:
     raised_exception = None
     """Captures any exception raised by ``action``."""
 
+    expected_exceptions = ()
+    """Tuple of expected exception types."""
+
     @classmethod
     def setup_class(cls):  # pragma nocover
         """The heart of this testing pattern.
@@ -97,16 +100,24 @@ class ActArrangeAssertTestCase:
         """
         # noinspection PyBroadException
         try:
-            cls.arrange()
+            try:
+                cls.arrange()
+            except Exception:
+                _logger.exception('Arrange step failed')
+                raise
+
             try:
                 cls.action()
             except AssertionError:
                 raise
-            except Exception as raised:
-                _logger.debug('exception caught', exc_info=True)
+            except cls.expected_exceptions as raised:
                 cls.raised_exception = raised
-        except Exception:
-            _logger.exception('arrange step failed')
+        except:
+            # teardown_class will not be called in this case so we
+            # need to perform the cleanup manually.
+            _logger.exception('Unexpected exception')
+            cls.annihilate()
+            raise
 
     @classmethod
     def teardown_class(cls):

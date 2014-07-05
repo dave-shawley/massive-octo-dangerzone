@@ -102,6 +102,8 @@ class WhenCreatingStorageAndPersonLabelIsMissing(
 class WhenRetrievingNeoActionsAndGetFails(
         PatchingMixin, ActArrangeAssertTestCase):
 
+    expected_exceptions = (exceptions.HTTPError,)
+
     @classmethod
     def arrange(cls):
         super().arrange()
