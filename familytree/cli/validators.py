@@ -160,9 +160,6 @@ def familial_relation(value):
     normalized = ' '.join(value.lower().replace('-', ' ').split())
     validating = normalized
 
-    if validating in ('head of house', 'head', 'h'):
-        normalized = 'head of house'
-
     if validating in _RELATION_ABBREVIATIONS:
         normalized = _RELATION_ABBREVIATIONS[validating]
 

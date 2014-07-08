@@ -96,13 +96,6 @@ class WhenValidatingYesNo(RandomValueMixin):
 
 class WhenValidatingFamilialRelationship(RandomValueMixin):
 
-    def should_accept_head_of_house(self):
-        assert validators.familial_relation('head of house') == 'head of house'
-        assert validators.familial_relation('head-of-house') == 'head of house'
-        assert validators.familial_relation('Head-of-House') == 'head of house'
-        assert validators.familial_relation('head') == 'head of house'
-        assert validators.familial_relation('H') == 'head of house'
-
     def should_accept_son(self):
         assert validators.familial_relation('son') == 'son'
         assert validators.familial_relation('Son') == 'son'
