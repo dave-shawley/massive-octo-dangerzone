@@ -1,3 +1,4 @@
+import functools
 from unittest import mock
 import logging
 import os
@@ -23,14 +24,36 @@ class RandomValueMixin:
     """
 
     _factory = Faker()
+
     last_random = None
     """The last random value generated."""
+
+    _named_values = {}
+
+    @classmethod
+    def get_generated_string(cls, value_name=None):
+        """Get a named randomly generated string.
+
+        :param str value_name: optional name to assign to the
+            generated value
+
+        If `value_name` is specified, then future calls to this
+        method with the same name will result in the same value
+        being returned.  This is useful if you need to generate
+        several random strings and refer to their values later.
+
+        """
+        random_value = cls._factory.pystr()
+        if value_name is not None:
+            random_value = cls._named_values.setdefault(
+                value_name, random_value)
+        cls.last_random = random_value
+        return cls.last_random
 
     @property
     def random_string(self):
         """A new random string."""
-        self.last_random = self._factory.pystr()
-        return self.last_random
+        return self.get_generated_string()
 
     @property
     def random_int(self):
@@ -71,13 +94,18 @@ class ActArrangeAssertTestCase:
     lots of test methods that are well-named and contain a single
     logical assertion.
 
-    .. _Act, Arrange, Assert: http://www.arrangeactassert.com/why-and-what-is-arrange-act-assert/
-    .. _Single Assert Principle: http://www.artima.com/weblogs/viewpost.jsp?thread=35578
+    .. _Act, Arrange, Assert: http://www.arrangeactassert.com/
+       why-and-what-is-arrange-act-assert/
+    .. _Single Assert Principle: http://www.artima.com/weblogs/
+       viewpost.jsp?thread=35578
 
     """
 
     raised_exception = None
     """Captures any exception raised by ``action``."""
+
+    expected_exceptions = ()
+    """Tuple of expected exception types."""
 
     @classmethod
     def setup_class(cls):  # pragma nocover
@@ -94,16 +122,24 @@ class ActArrangeAssertTestCase:
         """
         # noinspection PyBroadException
         try:
-            cls.arrange()
+            try:
+                cls.arrange()
+            except Exception:
+                _logger.exception('Arrange step failed')
+                raise
+
             try:
                 cls.action()
             except AssertionError:
                 raise
-            except Exception as raised:
-                _logger.debug('exception caught', exc_info=True)
+            except cls.expected_exceptions as raised:
                 cls.raised_exception = raised
-        except Exception:
-            _logger.exception('arrange step failed')
+        except:
+            # teardown_class will not be called in this case so we
+            # need to perform the cleanup manually.
+            _logger.exception('Unexpected exception')
+            cls.annihilate()
+            raise
 
     @classmethod
     def teardown_class(cls):
@@ -229,3 +265,59 @@ class TemporaryFileMixin:  # pragma nocover
                 prefix=prefix, suffix=suffix, dir=cls.__temporary_directory)
         file_name = '{0}{1}{2}'.format(prefix, uuid.uuid4().hex, suffix)
         return os.path.join(cls.__temporary_directory, file_name)
+
+
+class InfectiousMixin:
+
+    """
+    Observe method calls to an object/class.
+
+    Mix in this class over :class:`.ActArrangeAssertTestCase` if
+    you need to observe method calls to an object.  This functionality
+    is implemented by overwriting the method of the target object with
+    a simple wrapper that calls a hook and returns the result.  For
+    example, this can be used to keep track of method calls and their
+    results so that you can undo the action later.
+
+    .. code-block:: python
+
+        class WhenDoingTheWhoopy(
+                InfectiousMixin, ActArrangeAssertTestCase):
+
+            @classmethod
+            def arrange(cls):
+                super().arrange()
+                cls.infect_method(
+                    module.SomeClass, 'interesting', cls.spy)
+
+            @classmethod
+            def spy(cls, target, response):
+                print(target, 'returned', response)
+                return response
+
+    """
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls._infected = []
+
+    @classmethod
+    def annihilate(cls):
+        super().annihilate()
+        for target_class, method_name, old_method in cls._infected:
+            setattr(target_class, method_name, old_method)
+        del cls._infected[:]
+
+    @classmethod
+    def infect_method(cls, target_class, method_name, hook):
+        existing = getattr(target_class, method_name)
+        assert existing is not None
+
+        @functools.wraps(existing)
+        def wrapped(*args, **kwargs):
+            result = existing(*args, **kwargs)
+            return hook(existing, result)
+
+        setattr(target_class, method_name, wrapped)
+        cls._infected.append((target_class, method_name, existing))

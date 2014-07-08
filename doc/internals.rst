@@ -38,5 +38,13 @@ testing classes that I've come up with.
 .. autoclass:: tests.TemporaryFileMixin
    :members:
 
+.. autoclass:: tests.InfectiousMixin
+   :members:
+
+.. autoclass:: tests.integration.Neo4jTestingMixin
+   :members:
+
+.. autoclass:: tests.integration.SqliteLayerTestingMixin
+   :members:
 
 .. _py.test: http://pytest.org/

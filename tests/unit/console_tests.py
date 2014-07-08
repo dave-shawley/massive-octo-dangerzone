@@ -218,13 +218,11 @@ class WhenGettingLocation(PatchingMixin, ActArrangeAssertTestCase):
 
     def should_prompt_for_county(self):
         self.prompt_mock.assert_any_call(
-            '{0} county', mock.sentinel.prefix,
-            allow_empty=True, none_on_empty=True)
+            '{0} county', mock.sentinel.prefix, allow_empty=True)
 
     def should_prompt_for_state(self):
         self.prompt_mock.assert_any_call(
-            '{0} state', mock.sentinel.prefix,
-            allow_empty=True, none_on_empty=True)
+            '{0} state', mock.sentinel.prefix, allow_empty=True)
 
     def should_return_location_dict(self):
         assert self.returned == {

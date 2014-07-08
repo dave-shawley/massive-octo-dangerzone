@@ -163,11 +163,14 @@ class _Neo4jLayer:
         response = self.session.get(self.neo_actions['indexes'])
         labels = {info['label'] for info in response.json()}
         if 'Person' not in labels:
-            self.session.post(
-                urls.append(self.neo_actions['indexes'], 'Person'),
-                data=json.dumps({'property_keys': ['external_id']}),
-                headers={'content-type': 'application/json'},
-            )
+            self._create_label('Person', ['external_id'])
+
+    def _create_label(self, label_name, property_keys):
+        return self.session.post(
+            urls.append(self.neo_actions['indexes'], label_name),
+            data=json.dumps({'property_keys': property_keys}),
+            headers={'content-type': 'application/json'},
+        )
 
 
 class StorageLayer(_Neo4jLayer, _SqliteLayer):

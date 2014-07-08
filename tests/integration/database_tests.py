@@ -1,27 +1,19 @@
 import contextlib
 import functools
-import os
 import sqlite3
-import uuid
 
 from familytree import storage
+
+from . import Neo4jTestingMixin, SqliteLayerTestingMixin
 from .. import ActArrangeAssertTestCase
 
 
-class WhenCreatingStorageLayer(ActArrangeAssertTestCase):
-
-    @classmethod
-    def arrange(cls):
-        super().arrange()
-        cls.store_name = uuid.uuid4().hex
+class WhenCreatingStorageLayer(
+        Neo4jTestingMixin, SqliteLayerTestingMixin, ActArrangeAssertTestCase):
 
     @classmethod
     def action(cls):
         cls.storage = storage.StorageLayer(cls.store_name)
-
-    @classmethod
-    def annihilate(cls):
-        os.unlink(cls.storage.database_name)
 
     @functools.lru_cache()
     def get_column_names(self, table_name):
@@ -45,6 +37,11 @@ class WhenCreatingStorageLayer(ActArrangeAssertTestCase):
         assert 'middle_name' in self.get_column_names('people')
         assert 'last_name' in self.get_column_names('people')
         assert 'gender' in self.get_column_names('people')
+
+    def should_create_person_label(self):
+        links = self.ask_neo('/db/data')
+        index_list = self.ask_neo(links['indexes'])
+        assert 'Person' in {info['label'] for info in index_list}
 
 
 class WhenCreatingStorageLayerAndDatabaseFileExists(WhenCreatingStorageLayer):

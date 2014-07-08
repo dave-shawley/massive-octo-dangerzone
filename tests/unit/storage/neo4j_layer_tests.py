@@ -67,7 +67,7 @@ class RequestMixin:  # pragma nocover
                 raise AssertionError('cannot decode {0}'.format(content_type))
 
 
-class CreateStorageLayerTestCase(
+class WhenCreatingStorageAndPersonLabelIsMissing(
         RequestMixin, ActArrangeAssertTestCase):
 
     @classmethod
@@ -77,6 +77,8 @@ class CreateStorageLayerTestCase(
             'GET', 'http://localhost:7474/db/data',
             {'indexes': 'http://index-url/'},
         )
+        cls.add_json_response('GET', 'http://index-url/', [])
+        cls.add_json_response('POST', 'http://index-url/Person', {})
 
     @classmethod
     def action(cls):
@@ -89,14 +91,6 @@ class CreateStorageLayerTestCase(
     def should_request_index_list(self):
         self.assert_that_http_request_made('http://index-url/')
 
-
-class WhenCreatingStorageAndPersonLabelIsMissing(CreateStorageLayerTestCase):
-
-    @classmethod
-    def arrange(cls):
-        super().arrange()
-        cls.add_json_response('GET', 'http://index-url/', [])
-
     def should_create_person_label(self):
         self.assert_that_http_request_made(
             'http://index-url/Person',
@@ -107,6 +101,8 @@ class WhenCreatingStorageAndPersonLabelIsMissing(CreateStorageLayerTestCase):
 
 class WhenRetrievingNeoActionsAndGetFails(
         PatchingMixin, ActArrangeAssertTestCase):
+
+    expected_exceptions = (exceptions.HTTPError,)
 
     @classmethod
     def arrange(cls):

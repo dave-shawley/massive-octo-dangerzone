@@ -84,6 +84,7 @@ class WhenCreatingDatabaseAndPeopleTableExists(CreateStorageTestCase):
 
 
 class WhenCreatingDatabaseAndSourceTableCreationFails(CreateStorageTestCase):
+    expected_exceptions = (sqlite3.OperationalError,)
 
     @classmethod
     def _execute_sql_hook(cls, sql, _=None):
@@ -101,6 +102,7 @@ class WhenCreatingDatabaseAndSourceTableCreationFails(CreateStorageTestCase):
 
 
 class WhenCreatingDatabaseAndPeopleTableCreationFails(CreateStorageTestCase):
+    expected_exceptions = (sqlite3.OperationalError,)
 
     @classmethod
     def _execute_sql_hook(cls, sql, _=None):
