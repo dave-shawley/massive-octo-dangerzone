@@ -113,7 +113,8 @@ def get_date(prompt_, date_format, **kwargs):
     :param str date_format: input format string passed to
         :meth:`~datetime.datetime.strptime`
 
-    :returns: a ``datetime`` value
+    :returns: a ``datetime.date`` value
+    :rtype: datetime.date
 
     """
     return prompt(
@@ -138,10 +139,8 @@ def get_location(prefix):
     """
     return {
         'place': prompt('{0} place', prefix),
-        'county': prompt('{0} county', prefix,
-                         allow_empty=True, none_on_empty=True),
-        'state': prompt('{0} state', prefix,
-                        allow_empty=True, none_on_empty=True),
+        'county': prompt('{0} county', prefix, allow_empty=True),
+        'state': prompt('{0} state', prefix, allow_empty=True),
         'country': 'USA',
     }
 
