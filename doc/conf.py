@@ -24,4 +24,5 @@ html_theme = 'sphinx_rtd_theme'
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
+    'requests': ('https://requests.readthedocs.org/en/latest/', None),
 }

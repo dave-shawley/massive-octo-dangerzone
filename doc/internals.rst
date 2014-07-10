@@ -21,6 +21,13 @@ classes for each of the backend concerns.
    :private-members:
 
 
+HTTP Helpers
+------------
+
+.. autoclass:: familytree.storage.JsonSessionMixin
+   :members:
+
+
 Testing
 -------
 This application suite is tested using `py.test`_ and a number of useful

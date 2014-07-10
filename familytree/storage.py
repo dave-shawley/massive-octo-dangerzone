@@ -4,6 +4,8 @@ Storage Interface.
 
 - :class:`StorageLayer` - provides object, relationship, and fact
   persistence and retrieval
+- :class:`JsonSessionMixin` - implements common JSON-related
+  behaviors over :class:`requests.Session`
 - :func:`generate_hash` - generates consistent identifies for
   immutable objects
 
@@ -23,6 +25,7 @@ import json
 import pickle
 import sqlite3
 
+from requests import structures
 import requests
 
 from . import urls
@@ -238,3 +241,85 @@ def generate_hash(object_type, object_data):
     """
     pickled = pickle.dumps((object_type.lower(), _normalize(object_data)))
     return hashlib.sha1(pickled).hexdigest()
+
+
+class JsonSessionMixin:
+
+    """Mix in over :class:`requests.Session` to handle JSON bodies.
+
+    This mix-in provides semi-automatic content handling for JSON
+    requests and responses.  The :meth:`requests.Session.request`
+    method is extended to:
+
+    1. JSONify the ``data`` keyword argument unless the
+       :mailheader:`Content-Type` header *says* not to
+    2. Insert a :mailheader:`Content-Type` header if necessary
+    3. Insert a :mailheader:`Accept` header if necessary
+
+    The JSONification process is more involved than simply
+    calling :func:`json.dumps` on the data.  Dates are handled
+    explicitly by transforming them into lists of integer values
+    ordered from largest to smallest (i.e., year to second).
+
+    """
+
+    @staticmethod
+    def _normalize_date(obj):
+        try:
+            value = obj.replace(second=0, microsecond=0)
+            return [value.year, value.month, value.day,
+                    value.hour, value.minute, value.second]
+        except (AttributeError, TypeError):
+            pass
+
+        try:
+            return [obj.year, obj.month, obj.day]
+        except AttributeError:
+            pass
+
+        return str(obj)
+
+    def request(self, method, url, **kwargs):
+        """Adjust the request for JSON handling.
+
+        :keyword data: an optional body to send with the request
+        :keyword headers: an optional set of HTTP headers to
+            include with the request
+
+        This method extends the ``request`` method and implements
+        automatic behaviors for JSON requests.  All parameters
+        are passed through to ``super().request()``.
+
+        If ``data`` is specified, then it will be converted to JSON
+        unless a :mailheader:`Content-Type` header indicates that the
+        body is not JSON.  The presence of a body will also trigger
+        the addition of the appropriate content type header if not
+        not present.
+
+        If an :mailheader:`Accept` header is not present, then
+        one will be added that allows for ``application/json``
+        responses.
+
+        """
+        headers = structures.CaseInsensitiveDict(data=kwargs.get('headers'))
+        data = kwargs.get('data', None)
+        if data is not None:
+            content_type = headers.get('Content-Type')
+            if content_type is not None:
+                if ';' in content_type:
+                    content_type, _ = content_type.split(';', 1)
+                is_json = content_type.endswith('json')
+            else:
+                headers['Content-Type'] = 'application/json; charset=utf-8'
+                is_json = True
+
+            if is_json:
+                kwargs['data'] = json.dumps(
+                    data, default=self._normalize_date)
+
+        if 'Accept' not in headers:
+            headers['Accept'] = 'application/json'
+
+        kwargs['headers'] = headers
+
+        return super().request(method, url, **kwargs)
