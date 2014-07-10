@@ -2,10 +2,12 @@
 Storage Interface.
 ------------------
 
-- :class:`StorageLayer` - provides object, relationship, and fact
-  persistence and retrieval
+- :class:`BaseUrlMixin` - add relative URL support to the
+  :class:`requests.Session` class
 - :class:`JsonSessionMixin` - implements common JSON-related
   behaviors over :class:`requests.Session`
+- :class:`StorageLayer` - provides object, relationship, and fact
+  persistence and retrieval
 - :func:`generate_hash` - generates consistent identifies for
   immutable objects
 
@@ -24,6 +26,7 @@ import hashlib
 import json
 import pickle
 import sqlite3
+import urllib.parse
 
 from requests import structures
 import requests
@@ -323,3 +326,35 @@ class JsonSessionMixin:
         kwargs['headers'] = headers
 
         return super().request(method, url, **kwargs)
+
+
+class BaseUrlMixin:
+
+    """Mix in over :class:`requests.Session` for a URL prefix.
+
+    .. attribute:: base_url
+
+       The URL to use as the base when relative URLs are passed
+       to :meth:`request`.  This attribute is set by specifying
+       the ``base_url`` parameter to the initializer.
+
+    This simple mix-in extends :meth:`requests.Session.request`
+    so that it will perform a *URL join* operation between the
+    requested URL and the :attr:`base_url` attribute before
+    calling the base class ``request`` method.
+
+    """
+
+    def __init__(self, base_url, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.base_url = base_url
+        if not self.base_url.endswith('/'):
+            self.base_url += '/'
+
+    def request(self, method, url, *args, **kwargs):
+        """Prefixes ``url`` with :attr:`base_url` if necessary."""
+        return super().request(
+            method,
+            urllib.parse.urljoin(self.base_url, url),
+            *args, **kwargs
+        )

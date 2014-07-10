@@ -24,6 +24,9 @@ classes for each of the backend concerns.
 HTTP Helpers
 ------------
 
+.. autoclass:: familytree.storage.BaseUrlMixin
+   :members:
+
 .. autoclass:: familytree.storage.JsonSessionMixin
    :members:
 
