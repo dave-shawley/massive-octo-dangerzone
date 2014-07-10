@@ -10,6 +10,7 @@ from faker import Faker
 
 
 _logger = logging.getLogger('tests')
+logging.basicConfig(level=logging.DEBUG)
 
 
 class RandomValueMixin:
