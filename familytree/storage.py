@@ -4,6 +4,8 @@ Storage Interface.
 
 - :class:`StorageLayer` - provides object, relationship, and fact
   persistence and retrieval
+- :func:`generate_hash` - generates consistent identifies for
+  immutable objects
 
 This module is responsible for storing system objects, saving the
 relationships between them, and retrieving them.  Objects are
@@ -16,7 +18,9 @@ compared safely for equality.  The user should not modify object
 identifiers (e.g., manipulating case).
 
 """
+import hashlib
 import json
+import pickle
 import sqlite3
 
 import requests
@@ -191,3 +195,46 @@ class StorageLayer(_Neo4jLayer, _SqliteLayer):
 
     def __init__(self, store_name):
         super().__init__(database_name='{0}.ser'.format(store_name))
+
+
+def _normalize(data):
+    def normalize_datetime(value):
+        return value.replace(microsecond=0)
+
+    def normalize_string(value):
+        return value.lower()
+
+    def normalize_dict(value):
+        return {k: _normalize(v) for k, v in value.items()}
+
+    def normalize_iterable(value):
+        return [_normalize(elm) for elm in value]
+
+    hooks = [normalize_datetime, normalize_string, normalize_dict,
+             normalize_iterable]
+    for hook in hooks:
+        try:
+            return hook(data)
+        except (AttributeError, TypeError):
+            pass
+
+    return data
+
+
+def generate_hash(object_type, object_data):
+    """Generate a consistent hash for an object.
+
+    :param str object_type: the type of object being created
+    :param dict object_data: the identifying data to hash
+
+    :return: a SHA1 digest of the object
+
+    This function hashes normalized versions of `object_type`
+    and `object_data` and returns the SHA1 hex string.  The
+    normalization process applied converts strings to lower
+    case and truncates sub-second values from date/time values
+    before hashing the contents.
+
+    """
+    pickled = pickle.dumps((object_type.lower(), _normalize(object_data)))
+    return hashlib.sha1(pickled).hexdigest()
