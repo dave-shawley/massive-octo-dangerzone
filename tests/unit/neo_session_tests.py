@@ -1,0 +1,93 @@
+from unittest import mock
+
+from familytree import storage
+from .. import ActArrangeAssertTestCase, PatchingMixin
+
+
+class WhenCreatingNeoSession(ActArrangeAssertTestCase):
+
+    @classmethod
+    def action(cls):
+        cls.session = storage.NeoSession()
+
+    def should_set_base_url(self):
+        assert self.session.base_url == 'http://localhost:7474/db/data/'
+
+
+class WhenReadingActionLinks(ActArrangeAssertTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.session = storage.NeoSession()
+        cls.session.get = mock.Mock()
+
+    @classmethod
+    def action(cls):
+        cls.links = cls.session.action_links
+
+    def should_retrieve_service_root(self):
+        self.session.get.assert_called_once_with('')
+
+    def should_deserialize_response(self):
+        self.session.get.return_value.json.assert_called_once_with()
+
+    def should_return_json_response(self):
+        assert self.links == self.session.get.return_value.json.return_value
+
+
+class WhenReadingActionLinksTwice(WhenReadingActionLinks):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.first_links = cls.session.action_links
+
+    def should_return_same_instance_both_times(self):
+        assert self.links is self.first_links
+
+
+class WhenSubmittingRequestWithActionName(
+        PatchingMixin, ActArrangeAssertTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        super_lookup = cls.create_patch(
+            'familytree.storage.super', create=True)
+        cls.base_class = super_lookup.return_value
+        cls.session = storage.NeoSession()
+        cls.session._action_links = {
+            mock.sentinel.action: mock.sentinel.endpoint,
+        }
+
+    @classmethod
+    def action(cls):
+        cls.response = cls.session.request(
+            mock.sentinel.method, mock.sentinel.action)
+
+    def should_use_endpoint_url(self):
+        self.base_class.request.assert_called_once_with(
+            mock.sentinel.method, mock.sentinel.endpoint)
+
+
+class WhenSubmittingRequestWithNonAction(
+        PatchingMixin, ActArrangeAssertTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        super_lookup = cls.create_patch(
+            'familytree.storage.super', create=True)
+        cls.base_class = super_lookup.return_value
+        cls.session = storage.NeoSession()
+        cls.session._action_links = {}
+
+    @classmethod
+    def action(cls):
+        cls.response = cls.session.request(
+            mock.sentinel.method, mock.sentinel.url)
+
+    def should_pass_url_to_base_class(self):
+        self.base_class.request.assert_called_once_with(
+            mock.sentinel.method, mock.sentinel.url)

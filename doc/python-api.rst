@@ -31,4 +31,4 @@ Persistence Layer
 .. automodule:: familytree.storage
    :members:
    :inherited-members:
-   :exclude-members: BaseUrlMixin, JsonSessionMixin
+   :exclude-members: BaseUrlMixin, JsonSessionMixin, NeoSession

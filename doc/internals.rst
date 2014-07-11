@@ -20,6 +20,8 @@ classes for each of the backend concerns.
    :special-members: __init__
    :private-members:
 
+.. autoclass:: familytree.storage.NeoSession
+   :members:
 
 HTTP Helpers
 ------------

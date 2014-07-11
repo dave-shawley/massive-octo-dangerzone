@@ -358,3 +358,91 @@ class BaseUrlMixin:
             urllib.parse.urljoin(self.base_url, url),
             *args, **kwargs
         )
+
+
+class NeoSession(BaseUrlMixin, JsonSessionMixin, requests.Session):
+
+    """A ``requests.Session`` with Neo4j helpers.
+
+    The `Neo4j REST API`_ is a JSON-based API that contains
+    some hypermedia action links.  A ``NeoSession`` instance
+    provides automatic translation of request data to JSON
+    bodies using the :class:`.JsonSessionMixin`.  Just include
+    a :class:`dict` instance as the ``data`` keyword parameter
+    to any of the HTTP action methods.  The ``NeoSession`` will
+    take care of JSONifying the ``dict`` and inserting the
+    appropriate headers.
+
+    The *Service Root* of the API is a point for discovering the
+    available endpoints.  The service root response contains a
+    hypermedia link map as well as some information about the
+    server.  The API map is loaded on demand and made available
+    via the :attr:`action_links` attribute.
+
+    Since the Neo4j API is hypermedia driven, the :meth:`request`
+    method will accept an action name in place of the ``url``
+    parameter.  If ``url`` matches a key in :attr:`action_links`,
+    then the URL for the endpoint is used instead.
+
+    .. _Neo4j REST API: http://docs.neo4j.org/chunked/stable/rest-api.html
+
+    """
+
+    def __init__(self):
+        super().__init__(base_url='http://localhost:7474/db/data')
+        self._action_links = None
+
+    @property
+    def action_links(self):
+        """
+        :class:`dict` that maps hypermedia action to API endpoint
+
+        This attribute can be used to discover the functionality
+        available from the Neo server.  Keys from this attribute
+        can be used as the ``url`` parameter to :meth:`request`
+        as well.
+
+        .. code-block:: json
+
+            {
+                "batch": "http://localhost:7474/db/data/batch",
+                "constraints":
+                    "http://localhost:7474/db/data/schema/constraint",
+                "cypher": "http://localhost:7474/db/data/cypher",
+                "extensions": {},
+                "extensions_info": "http://localhost:7474/db/data/ext",
+                "indexes": "http://localhost:7474/db/data/schema/index",
+                "neo4j_version": "2.0.3",
+                "node": "http://localhost:7474/db/data/node",
+                "node_index": "http://localhost:7474/db/data/index/node",
+                "node_labels": "http://localhost:7474/db/data/labels",
+                "relationship_index":
+                    "http://localhost:7474/db/data/index/relationship",
+                "relationship_types":
+                    "http://localhost:7474/db/data/relationship/types",
+                "transaction": "http://localhost:7474/db/data/transaction"
+            }
+
+        """
+        if self._action_links is None:
+            response = self.get('')
+            self._action_links = response.json()
+        return self._action_links
+
+    def request(self, method, url, *args, **kwargs):
+        """Issue an HTTP request.
+
+        :param str method: passed to ``super().request()``
+        :param str url: see below
+        :param args: passed to ``super().request()``
+        :param kwargs: passed to ``super().request()``
+
+        This method recognizes when a Neo4j action is passed
+        as the `url` parameter.  If `url` is a key in
+        :attr:`action_links`, then the action link replaces
+        the URL before calling ``super().request()``.
+
+        """
+        if url in self.action_links:
+            url = self.action_links[url]
+        return super().request(method, url, *args, **kwargs)
