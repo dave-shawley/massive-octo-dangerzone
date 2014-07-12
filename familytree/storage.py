@@ -24,35 +24,44 @@ identifiers (e.g., manipulating case).
 """
 import hashlib
 import json
-import pickle
 import urllib.parse
 
 from requests import structures
 import requests
 
 
-def _normalize(data):
-    def normalize_datetime(value):
-        return value.replace(microsecond=0)
+def _linearize(obj):
 
-    def normalize_string(value):
+    def handle_dict(value):
+        return '{%s}' % ','.join(
+            '{0}={1}'.format(key, _linearize(value[key]))
+            for key in sorted(value.keys())
+        )
+
+    def handle_str(value):
         return value.lower()
 
-    def normalize_dict(value):
-        return {k: _normalize(v) for k, v in value.items()}
+    def handle_iterables(value):
+        return '[{0}]'.format(','.join(_linearize(elm) for elm in value))
 
-    def normalize_iterable(value):
-        return [_normalize(elm) for elm in value]
+    def handle_datetime(value):
+        return value.replace(microsecond=0).isoformat()
 
-    hooks = [normalize_datetime, normalize_string, normalize_dict,
-             normalize_iterable]
+    def handle_simple(value):
+        return str(value)
+
+    hooks = [
+        handle_dict,
+        handle_datetime,
+        handle_str,
+        handle_iterables,
+        handle_simple,
+    ]
     for hook in hooks:
         try:
-            return hook(data)
+            return hook(obj)
         except (AttributeError, TypeError):
             pass
-
-    return data
 
 
 def generate_hash(object_type, object_data):
@@ -70,8 +79,8 @@ def generate_hash(object_type, object_data):
     before hashing the contents.
 
     """
-    pickled = pickle.dumps((object_type.lower(), _normalize(object_data)))
-    return hashlib.sha1(pickled).hexdigest()
+    data = '{0}#{1}'.format(object_type.lower(), _linearize(object_data))
+    return hashlib.sha1(data.encode('utf-8')).hexdigest()
 
 
 class JsonSessionMixin:

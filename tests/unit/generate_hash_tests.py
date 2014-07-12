@@ -1,36 +1,81 @@
 import datetime
 import hashlib
-import pickle
+import math
 
 from familytree import storage
 
 
-OBJECT_TYPE = 'Object Type'
+def verify(obj, linear_form):
+    hashed = storage.generate_hash('Object Type', obj)
+    prefixed = 'object type#{0}'.format(linear_form)
+    assert hashed == hashlib.sha1(prefixed.encode('utf-8')).hexdigest()
 
 
-def _hash_object(normalized):
-    return hashlib.sha1(
-        pickle.dumps((OBJECT_TYPE.lower(), normalized))).hexdigest()
+def should_lowercase_string_values():
+    verify(
+        {'str': 'A String'},
+        '{str=a string}',
+    )
 
 
-def should_hash_lowercase_string():
-    hashed = storage.generate_hash(OBJECT_TYPE, {'STRING': 'Value'})
-    assert hashed == _hash_object({'STRING': 'value'})
+def should_format_integers():
+    verify(
+        {'simple': 1234, 'long': 0xDEADCAFEBABE},
+        '{long=244838016400062,simple=1234}',
+    )
 
 
-def should_descend_into_embedded_dictionaries():
-    hashed = storage.generate_hash(
-        OBJECT_TYPE, {'SomeDict': {'Second': 'BEEF', 'First': 'DeaD'}})
-    assert hashed == _hash_object({
-        'SomeDict': {'Second': 'beef', 'First': 'dead'}})
+def should_handle_odd_floats():
+    verify(
+        {'simple': math.pi, 'hard': float('inf'), 'harder': 1j},
+        '{hard=inf,harder=1j,simple=%s}' % math.pi,
+    )
 
 
-def should_hash_elements_of_a_list():
-    hashed = storage.generate_hash(OBJECT_TYPE, {'blah': ['one', 2, 'Three']})
-    assert hashed == _hash_object({'blah': ['one', 2, 'three']})
+def should_format_dates_as_iso8601():
+    today = datetime.date.today()
+    verify(
+        {'date': today},
+        '{date=%s}' % today.isoformat(),
+    )
 
 
-def should_hash_normalized_datetimes():
-    now = datetime.datetime.utcnow()
-    hashed = storage.generate_hash(OBJECT_TYPE, {'now': now})
-    assert hashed == _hash_object({'now': now.replace(microsecond=0)})
+def should_format_datetime_as_iso8601_without_subseconds():
+    now = datetime.datetime.utcnow().replace(microsecond=12345)
+    verify(
+        {'datetime': now},
+        '{datetime=%s}' % now.replace(microsecond=0).isoformat(),
+    )
+
+
+def should_bracket_embedded_lists():
+    verify(
+        {'a list': ['one', 2, 'Three']},
+        '{a list=[one,2,three]}',
+    )
+
+
+def should_bracket_embedded_tuples():
+    verify(
+        {'a tuple': ('one', 2, 'Three')},
+        '{a tuple=[one,2,three]}',
+    )
+
+
+def should_bracket_embedded_generators():
+    def genny():
+        yield 'one'
+        yield 2
+        yield 'Three'
+
+    verify(
+        {'a generator': genny()},
+        '{a generator=[one,2,three]}',
+    )
+
+
+def should_brace_embedded_dicts():
+    verify(
+        {'a dict': {'key': 'Value'}},
+        '{a dict={key=value}}',
+    )
