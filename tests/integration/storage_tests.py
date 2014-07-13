@@ -1,39 +1,22 @@
 import requests
 
 from familytree import storage
-
+from . import NeoTestingMixin
 from .. import ActArrangeAssertTestCase
 
 
-class WhenCreatingObject(ActArrangeAssertTestCase):
+class WhenCreatingObject(NeoTestingMixin, ActArrangeAssertTestCase):
 
     @classmethod
     def arrange(cls):
         super().arrange()
-        cls._nodes_to_remove = []
         cls.data = {'name': 'some name'}
         cls.storage = storage.StorageLayer()
-        cls.storage._session.hooks['response'].append(
-            cls._process_neo_response)
+        cls.monitor_session(cls.storage._session)
 
     @classmethod
     def action(cls):
         cls.object = cls.storage.create_object('Person', cls.data)
-
-    @classmethod
-    def annihilate(cls):
-        super().annihilate()
-        while cls._nodes_to_remove:
-            requests.delete(cls._nodes_to_remove.pop())
-
-    @classmethod
-    def _process_neo_response(cls, response, **kwargs):
-        if (response.ok and response.text and
-                response.request.method in ('POST', 'PUT')):
-            body = response.json()
-            if body.get('self'):
-                cls._nodes_to_remove.append(body['self'])
-        return response
 
     def should_create_object_in_neo(self):
         response = requests.get(self.object.self)

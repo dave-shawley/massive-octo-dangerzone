@@ -31,6 +31,9 @@ testing classes that I've come up with.
 .. autoclass:: tests.ActArrangeAssertTestCase
    :members:
 
+.. autoclass:: tests.integration.NeoTestingMixin
+   :members:
+
 .. autoclass:: tests.PatchingMixin
    :members:
 

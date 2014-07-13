@@ -8,6 +8,7 @@ needs_sphinx = '1.0'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
+    'sphinxcontrib.httpdomain',
 ]
 templates_path = []
 source_suffix = '.rst'
