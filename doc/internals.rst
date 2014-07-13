@@ -10,16 +10,6 @@ hiding many of the details surrounding the underlying storage of objects
 and relationships.  The details are actually separated into separate base
 classes for each of the backend concerns.
 
-.. autoclass:: familytree.storage._SqliteLayer
-   :members:
-   :special-members: __init__
-   :private-members:
-
-.. autoclass:: familytree.storage._Neo4jLayer
-   :members:
-   :special-members: __init__
-   :private-members:
-
 .. autoclass:: familytree.storage.NeoSession
    :members:
 
