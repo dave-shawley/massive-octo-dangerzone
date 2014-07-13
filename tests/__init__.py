@@ -1,4 +1,3 @@
-import functools
 from unittest import mock
 import logging
 import os
@@ -266,59 +265,3 @@ class TemporaryFileMixin:  # pragma nocover
                 prefix=prefix, suffix=suffix, dir=cls.__temporary_directory)
         file_name = '{0}{1}{2}'.format(prefix, uuid.uuid4().hex, suffix)
         return os.path.join(cls.__temporary_directory, file_name)
-
-
-class InfectiousMixin:
-
-    """
-    Observe method calls to an object/class.
-
-    Mix in this class over :class:`.ActArrangeAssertTestCase` if
-    you need to observe method calls to an object.  This functionality
-    is implemented by overwriting the method of the target object with
-    a simple wrapper that calls a hook and returns the result.  For
-    example, this can be used to keep track of method calls and their
-    results so that you can undo the action later.
-
-    .. code-block:: python
-
-        class WhenDoingTheWhoopy(
-                InfectiousMixin, ActArrangeAssertTestCase):
-
-            @classmethod
-            def arrange(cls):
-                super().arrange()
-                cls.infect_method(
-                    module.SomeClass, 'interesting', cls.spy)
-
-            @classmethod
-            def spy(cls, target, response):
-                print(target, 'returned', response)
-                return response
-
-    """
-
-    @classmethod
-    def arrange(cls):
-        super().arrange()
-        cls._infected = []
-
-    @classmethod
-    def annihilate(cls):
-        super().annihilate()
-        for target_class, method_name, old_method in cls._infected:
-            setattr(target_class, method_name, old_method)
-        del cls._infected[:]
-
-    @classmethod
-    def infect_method(cls, target_class, method_name, hook):
-        existing = getattr(target_class, method_name)
-        assert existing is not None
-
-        @functools.wraps(existing)
-        def wrapped(*args, **kwargs):
-            result = existing(*args, **kwargs)
-            return hook(existing, result)
-
-        setattr(target_class, method_name, wrapped)
-        cls._infected.append((target_class, method_name, existing))
