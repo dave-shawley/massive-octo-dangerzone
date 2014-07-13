@@ -1,5 +1,4 @@
 from unittest import mock
-import unittest
 
 from familytree import storage
 from .. import ActArrangeAssertTestCase, PatchingMixin
