@@ -2,12 +2,18 @@
 Storage Interface.
 ------------------
 
+**Primary Interfaces**
+
+- :class:`StorageLayer` - provides object, relationship, and fact
+  persistence and retrieval
+- :class:`NeoNode` - implements one of the Family Tree *concepts*
+
+**Utility Classes & Functions**
+
 - :class:`BaseUrlMixin` - add relative URL support to the
   :class:`requests.Session` class
 - :class:`JsonSessionMixin` - implements common JSON-related
   behaviors over :class:`requests.Session`
-- :class:`StorageLayer` - provides object, relationship, and fact
-  persistence and retrieval
 - :func:`generate_hash` - generates consistent identifies for
   immutable objects
 
@@ -284,3 +290,88 @@ class NeoSession(BaseUrlMixin, JsonSessionMixin, requests.Session):
             if url in self.action_links:
                 url = self.action_links[url]
         return super().request(method, url, *args, **kwargs)
+
+
+class NeoNode:
+
+    """Represents a object that implements a *concept*.
+
+    :param dict data: response dictionary from Neo4j
+
+    Family Tree *concepts* are similar to *models* but without the
+    baggage associated with them (i.e., not an MVC architecture).
+    The response from Neo4j includes hypermedia actions as well as
+    data properties.  A ``NeoNode`` instance saves both sets of
+    information and makes them available via attributes.
+
+    """
+
+    def __init__(self, data):
+        super().__init__()
+        self._action_links = None
+        self._data = data.copy()
+
+    @property
+    def self(self):
+        """The canonical link for this object"""
+        return self._data['self']
+
+    @property
+    def action_links(self):
+        """Dictionary of action name to URL"""
+        if self._action_links is None:
+            self._action_links = self._data.copy()
+            del self._action_links['data']
+        return self._action_links
+
+    def __getitem__(self, item):
+        """Retrieve data property by name.
+
+        :param str item: the name of a property to retrieve
+        :raises KeyError: if `item` does not exist in the list of
+            properties
+
+        """
+        return self._data['data'][item]
+
+
+class StorageLayer:
+
+    """Stores and retrieves familytree concepts.
+
+    This class acts as the gatekeeper to the underlying persistence
+    layer.  It stores, retrieves, and manufactures objects that
+    implement the various concepts.  Individual objects are represented
+    by :class:`NeoNode` instances.
+
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._session = NeoSession()
+
+    def create_object(self, object_label, object_data, object_id=None):
+        """Creates a new labeled object.
+
+        :param str object_label: the label to apply to the newly
+            created object
+        :param dict object_data: the attributes of the object
+        :keyword str object_id: an optional identifier for the
+            object.  If this parameter is :data:`None`, then a
+            new identifier is generated using :func:`.generate_hash`
+
+        :return: a :class:`NeoNode` object linked to the identified node
+
+        """
+        if object_id is None:
+            object_id = generate_hash(object_label, object_data)
+
+        full_data = object_data.copy()
+        full_data['externalId'] = object_id
+
+        response = self._session.post('node', data=full_data)
+        node = NeoNode(response.json())
+
+        self._session.post(node.action_links['labels'], data=object_label)
+
+        return node
