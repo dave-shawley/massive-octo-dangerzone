@@ -189,6 +189,7 @@ class BaseUrlMixin:
     """
 
     def __init__(self, base_url, *args, **kwargs):
+        # noinspection PyArgumentList
         super().__init__(*args, **kwargs)
         self.base_url = base_url
         if not self.base_url.endswith('/'):
@@ -370,8 +371,11 @@ class StorageLayer:
         full_data['externalId'] = object_id
 
         response = self._session.post('node', data=full_data)
+        response.raise_for_status()
         node = NeoNode(response.json())
 
-        self._session.post(node.action_links['labels'], data=object_label)
+        response = self._session.post(
+            node.action_links['labels'], data=object_label)
+        response.raise_for_status()
 
         return node
