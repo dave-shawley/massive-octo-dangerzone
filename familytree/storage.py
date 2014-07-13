@@ -262,7 +262,7 @@ class NeoSession(BaseUrlMixin, JsonSessionMixin, requests.Session):
 
         """
         if self._action_links is None:
-            response = self.get('')
+            response = self.get('', _ignore_actions=True)
             self._action_links = response.json()
         return self._action_links
 
@@ -280,6 +280,7 @@ class NeoSession(BaseUrlMixin, JsonSessionMixin, requests.Session):
         the URL before calling ``super().request()``.
 
         """
-        if url in self.action_links:
-            url = self.action_links[url]
+        if not kwargs.pop('_ignore_actions', False):
+            if url in self.action_links:
+                url = self.action_links[url]
         return super().request(method, url, *args, **kwargs)

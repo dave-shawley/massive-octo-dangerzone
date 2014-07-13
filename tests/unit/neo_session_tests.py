@@ -27,7 +27,7 @@ class WhenReadingActionLinks(ActArrangeAssertTestCase):
         cls.links = cls.session.action_links
 
     def should_retrieve_service_root(self):
-        self.session.get.assert_called_once_with('')
+        self.session.get.assert_called_once_with('', _ignore_actions=True)
 
     def should_deserialize_response(self):
         self.session.get.return_value.json.assert_called_once_with()
