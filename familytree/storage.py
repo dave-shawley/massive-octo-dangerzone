@@ -270,7 +270,14 @@ class NeoSession(BaseUrlMixin, JsonSessionMixin, requests.Session):
         """
         if self._action_links is None:
             response = self.get('', _ignore_actions=True)
-            self._action_links = response.json()
+            self._action_links = {}
+            for link, maybe_url in response.json().items():
+                try:
+                    if not maybe_url.endswith('/'):
+                        maybe_url += '/'
+                except AttributeError:  # maybe_url not a str
+                    pass
+                self._action_links[link] = maybe_url
         return self._action_links
 
     def request(self, method, url, *args, **kwargs):

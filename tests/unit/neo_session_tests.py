@@ -21,6 +21,11 @@ class WhenReadingActionLinks(ActArrangeAssertTestCase):
         super().arrange()
         cls.session = storage.NeoSession()
         cls.session.get = mock.Mock()
+        response = cls.session.get.return_value
+        response.json.return_value = {
+            'trailing_slash': 'http://localhost:7474/db/data/',
+            'slash_omitted': 'http://localhost:7474/db/data/index',
+        }
 
     @classmethod
     def action(cls):
@@ -32,8 +37,11 @@ class WhenReadingActionLinks(ActArrangeAssertTestCase):
     def should_deserialize_response(self):
         self.session.get.return_value.json.assert_called_once_with()
 
-    def should_return_json_response(self):
-        assert self.links == self.session.get.return_value.json.return_value
+    def should_append_trailing_slash_when_needed(self):
+        assert self.links['slash_omitted'].endswith('/')
+
+    def should_not_append_slash_when_present(self):
+        assert not self.links['trailing_slash'].endswith('//')
 
 
 class WhenReadingActionLinksTwice(WhenReadingActionLinks):
