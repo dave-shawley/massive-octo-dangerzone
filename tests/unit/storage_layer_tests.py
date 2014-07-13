@@ -24,6 +24,9 @@ class CreateObjectTestCase(RandomValueMixin, ActArrangeAssertTestCase):
         }
 
         cls.label_response = mock.Mock()
+
+        cls.storage_layer._session.get.return_value.json.return_value = []
+
         cls.storage_layer._session.post.side_effect = [
             cls.create_response, cls.label_response]
 
@@ -40,10 +43,20 @@ class CreateObjectTestCase(RandomValueMixin, ActArrangeAssertTestCase):
 
 class WhenCreatingObject(CreateObjectTestCase):
 
+    @property
+    def generated_object_id(self):
+        return storage.generate_hash(
+            self.get_generated_string('label'), self.object_data)
+
     def should_generate_object_id(self):
         kwargs = self._get_request_kwargs('node')
-        assert kwargs['data']['externalId'] == storage.generate_hash(
-            self.get_generated_string('label'), self.object_data)
+        assert kwargs['data']['externalId'] == self.generated_object_id
+
+    def should_search_for_external_id(self):
+        self.storage_layer._session.get.assert_called_once_with(
+            'label/{0}/nodes'.format(self.get_generated_string('label')),
+            params={'externalId': '"{0}"'.format(self.generated_object_id)},
+        )
 
     def should_assign_object_label(self):
         kwargs = self._get_request_kwargs(mock.sentinel.label_link)
@@ -96,3 +109,35 @@ class WhenCreatingObjectWithObjectId(CreateObjectTestCase):
     def should_use_specified_object_id(self):
         kwargs = self._get_request_kwargs('node')
         assert kwargs['data']['externalId'] == mock.sentinel.object_id
+
+
+class WhenCreatingObjectThatAlreadyExists(CreateObjectTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.matched_object = mock.Mock()
+        cls.storage_layer._session.get.return_value.json.return_value = [
+            cls.matched_object]
+
+    def should_not_create_new_object(self):
+        assert not self.storage_layer._session.post.called
+
+    def should_return_neo_object(self):
+        assert isinstance(self.obj, storage.NeoNode)
+
+
+class WhenCreatingObjectAndLookupFails(CreateObjectTestCase):
+    expected_exceptions = exceptions.RequestException
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.response = cls.storage_layer._session.get.return_value
+        cls.response.raise_for_status.side_effect = exceptions.HTTPError
+
+    def should_raise_for_status(self):
+        self.response.raise_for_status.assert_called_once_with()
+
+    def should_propagate_exception(self):
+        assert isinstance(self.raised_exception, exceptions.HTTPError)
