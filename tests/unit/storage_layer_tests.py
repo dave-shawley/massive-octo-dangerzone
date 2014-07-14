@@ -3,7 +3,7 @@ from unittest import mock
 from requests import exceptions
 
 from familytree import storage
-from .. import ActArrangeAssertTestCase, PatchingMixin, RandomValueMixin
+from .. import ActArrangeAssertTestCase, RandomValueMixin
 
 
 class CreateObjectTestCase(RandomValueMixin, ActArrangeAssertTestCase):
@@ -64,6 +64,10 @@ class WhenCreatingObject(CreateObjectTestCase):
 
     def should_return_neo_object(self):
         assert isinstance(self.obj, storage.NeoNode)
+
+    def should_ensure_label_is_indexed(self):
+        self.storage_layer._session.ensure_indexed.assert_called_once_with(
+            self.get_generated_string('label'))
 
 
 class WhenCreatingObjectAndCreateRequestFails(CreateObjectTestCase):

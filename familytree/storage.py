@@ -396,6 +396,9 @@ class StorageLayer:
         :return: a :class:`NeoNode` object linked to the identified node
 
         """
+
+        self._session.ensure_indexed(object_label)
+
         if object_id is None:
             object_id = generate_hash(object_label, object_data)
 
