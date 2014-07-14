@@ -235,6 +235,7 @@ class NeoSession(BaseUrlMixin, JsonSessionMixin, requests.Session):
     def __init__(self):
         super().__init__(base_url='http://localhost:7474/db/data')
         self._action_links = None
+        self._indexes = set()
 
     @property
     def action_links(self):
@@ -298,6 +299,30 @@ class NeoSession(BaseUrlMixin, JsonSessionMixin, requests.Session):
             if url in self.action_links:
                 url = self.action_links[url]
         return super().request(method, url, *args, **kwargs)
+
+    def ensure_indexed(self, object_label):
+        """Ensure that an index exists for `object_label`.
+
+        :param str object_label: the label that should be indexed
+
+        If an index does not exist for `object_label`, then an
+        index is created.
+
+        """
+
+        if object_label not in self._indexes:
+            response = self.get('indexes')
+            response.raise_for_status()
+            self._indexes.clear()
+            self._indexes.update({info['label'] for info in response.json()})
+
+            if object_label not in self._indexes:
+                self.post(
+                    urllib.parse.urljoin(
+                        self.action_links['indexes'], object_label),
+                    data={'property_keys': ['externalId']},
+                ).raise_for_status()
+                self._indexes.add(object_label)
 
 
 class NeoNode:

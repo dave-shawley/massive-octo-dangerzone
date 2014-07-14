@@ -1,3 +1,5 @@
+import uuid
+
 import requests
 
 from familytree import storage
@@ -35,3 +37,25 @@ class WhenCreatingObject(NeoTestingMixin, ActArrangeAssertTestCase):
         matches = response.json()
         assert len(matches) == 1
         assert matches[0] == requests.get(self.object.self).json()
+
+
+class WhenNeoSessionEnsuresAnIndex(NeoTestingMixin, ActArrangeAssertTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.object_label = uuid.uuid4().hex
+        cls.session = storage.NeoSession()
+        cls.monitor_session(cls.session)
+
+    @classmethod
+    def action(cls):
+        cls.session.ensure_indexed(cls.object_label)
+
+    def should_ensure_index_exists(self):
+        for index_info in self.neo_get('indexes'):
+            if index_info['label'] == self.object_label:
+                assert index_info['property_keys'] == ['externalId']
+                break
+        else:
+            assert False, '{0} not found'.format(self.object_label)
