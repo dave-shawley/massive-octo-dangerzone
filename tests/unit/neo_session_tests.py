@@ -1,5 +1,7 @@
 from unittest import mock
 
+from requests import exceptions
+
 from familytree import storage
 from .. import ActArrangeAssertTestCase, PatchingMixin, RandomValueMixin
 
@@ -216,3 +218,36 @@ class WhenEnsuringAnIndexThatExists(EnsureIndexTestCase):
 
     def should_not_create_index(self):
         assert not self.session.post.called
+
+
+########################################################################
+# NeoSession.find_object
+########################################################################
+
+class WhenFindingObjectAndLookupFails(
+        RandomValueMixin, ActArrangeAssertTestCase):
+
+    expected_exceptions = exceptions.RequestException
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.session = storage.NeoSession()
+        cls.session.get = mock.Mock()
+        cls.session.get.return_value.raise_for_status.side_effect = (
+            exceptions.HTTPError)
+
+    @classmethod
+    def action(cls):
+        cls.obj = cls.session.find_object(
+            cls.get_generated_string(), cls.get_generated_string())
+
+    @property
+    def get_response(self):
+        return self.session.get.return_value
+
+    def should_raise_for_status(self):
+        self.get_response.raise_for_status.assert_called_once_with()
+
+    def should_propagate_exception(self):
+        assert isinstance(self.raised_exception, exceptions.HTTPError)

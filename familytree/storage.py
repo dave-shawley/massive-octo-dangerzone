@@ -324,6 +324,24 @@ class NeoSession(BaseUrlMixin, JsonSessionMixin, requests.Session):
                 ).raise_for_status()
                 self._indexes.add(object_label)
 
+    def find_object(self, object_label, object_id):
+        """Find an object by label and unique ID.
+
+        :param str object_label: the label to search under
+        :param str object_id: the unique ID to search for
+        :returns: a :class:`NeoNode` instance or :data:`None`
+
+        """
+        response = self.get(
+            'label/{0}/nodes'.format(object_label),
+            params={'externalId': '"{0}"'.format(object_id)},
+        )
+        response.raise_for_status()
+        matched = response.json()
+        if matched:
+            return NeoNode(matched[0])
+        return None
+
 
 class NeoNode:
 
@@ -366,6 +384,10 @@ class NeoNode:
 
         """
         return self._data['data'][item]
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, self.__class__) and self._data == other._data)
 
 
 class StorageLayer:

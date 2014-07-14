@@ -59,3 +59,47 @@ class WhenNeoSessionEnsuresAnIndex(NeoTestingMixin, ActArrangeAssertTestCase):
                 break
         else:  # pragma nocover
             assert False, '{0} not found'.format(self.object_label)
+
+
+class WhenNeoSessionLooksForObjectThatDoesNotExist(
+        NeoTestingMixin, ActArrangeAssertTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.object_label = uuid.uuid4().hex
+        cls.object_id = uuid.uuid4().hex
+        cls.session = storage.NeoSession()
+        cls.monitor_session(cls.session)
+
+    @classmethod
+    def action(cls):
+        cls.matched = cls.session.find_object(cls.object_label, cls.object_id)
+
+    def should_return_none(self):
+        assert self.matched is None
+
+
+class WhenNeoSessionLooksForObjectThatExists(
+        NeoTestingMixin, ActArrangeAssertTestCase):
+
+    @classmethod
+    def arrange(cls):
+        super().arrange()
+        cls.object_label = uuid.uuid4().hex
+        cls.data = {'name': 'blah'}
+
+        storage_layer = storage.StorageLayer()
+        cls.monitor_session(storage_layer._session)
+        cls.obj = storage_layer.create_object(cls.object_label, cls.data)
+
+        cls.session = storage.NeoSession()
+        cls.monitor_session(cls.session)
+
+    @classmethod
+    def action(cls):
+        cls.matched = cls.session.find_object(
+            cls.object_label, cls.obj['externalId'])
+
+    def should_find_object(self):
+        assert self.matched == self.obj
