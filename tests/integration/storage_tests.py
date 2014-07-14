@@ -57,5 +57,5 @@ class WhenNeoSessionEnsuresAnIndex(NeoTestingMixin, ActArrangeAssertTestCase):
             if index_info['label'] == self.object_label:
                 assert index_info['property_keys'] == ['externalId']
                 break
-        else:
+        else:  # pragma nocover
             assert False, '{0} not found'.format(self.object_label)

@@ -24,9 +24,9 @@ class WhenJsonSessionMixinNormalizesDateTime(
     def arrange(cls):
         super().arrange()
         cls.input = datetime.datetime.utcnow()
-        if cls.input.second == 0:
+        if cls.input.second == 0:  # pragma nocover
             cls.input = cls.input.replace(second=12)
-        if cls.input.microsecond == 0:
+        if cls.input.microsecond == 0:  # pragma nocover
             cls.input = cls.input.replace(microsecond=1234)
 
     def should_return_values_as_list(self):
