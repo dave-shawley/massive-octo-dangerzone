@@ -16,26 +16,22 @@ class CreateObjectTestCase(RandomValueMixin, ActArrangeAssertTestCase):
         cls.object_data = {
             cls.get_generated_string(): cls.get_generated_string(),
         }
-
-        cls.create_response = mock.Mock()
+        cls.create_response, cls.label_response = mock.Mock(), mock.Mock()
+        cls.storage_layer._session.post.side_effect = [
+            cls.create_response, cls.label_response]
         cls.create_response.json.return_value = {
             'labels': mock.sentinel.label_link,
             'data': cls.object_data.copy(),
         }
 
-        cls.label_response = mock.Mock()
-
         cls.storage_layer._session.get.return_value.json.return_value = []
-
-        cls.storage_layer._session.post.side_effect = [
-            cls.create_response, cls.label_response]
 
     @classmethod
     def action(cls):
         cls.obj = cls.storage_layer.create_object(
             cls.get_generated_string('label'), cls.object_data)
 
-    def _get_request_kwargs(self, url):
+    def _get_post_kwargs_for(self, url):
         for args, kwargs in self.storage_layer._session.post.call_args_list:
             if args[0] == url:
                 return kwargs
@@ -49,7 +45,7 @@ class WhenCreatingObject(CreateObjectTestCase):
             self.get_generated_string('label'), self.object_data)
 
     def should_generate_object_id(self):
-        kwargs = self._get_request_kwargs('node')
+        kwargs = self._get_post_kwargs_for('node')
         assert kwargs['data']['externalId'] == self.generated_object_id
 
     def should_search_for_external_id(self):
@@ -59,7 +55,7 @@ class WhenCreatingObject(CreateObjectTestCase):
         )
 
     def should_assign_object_label(self):
-        kwargs = self._get_request_kwargs(mock.sentinel.label_link)
+        kwargs = self._get_post_kwargs_for(mock.sentinel.label_link)
         assert kwargs['data'] == self.get_generated_string('label')
 
     def should_return_neo_object(self):
@@ -83,6 +79,9 @@ class WhenCreatingObjectAndCreateRequestFails(CreateObjectTestCase):
 
     def should_propagate_exception(self):
         assert isinstance(self.raised_exception, exceptions.HTTPError)
+
+    def should_not_label_node(self):
+        assert self.storage_layer._session.post.call_count == 1
 
 
 class WhenCreatingObjectAndLabelRequestFails(CreateObjectTestCase):
@@ -111,7 +110,7 @@ class WhenCreatingObjectWithObjectId(CreateObjectTestCase):
         )
 
     def should_use_specified_object_id(self):
-        kwargs = self._get_request_kwargs('node')
+        kwargs = self._get_post_kwargs_for('node')
         assert kwargs['data']['externalId'] == mock.sentinel.object_id
 
 
