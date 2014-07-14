@@ -1,40 +1,39 @@
-import os
-import uuid
-import urllib.parse
-
 import requests
 
-from familytree import storage
-from .. import InfectiousMixin
 
+class NeoTestingMixin:
 
-class Neo4jTestingMixin(InfectiousMixin):
+    """Removes Neo4j elements created during testing.
 
-    """
-    Removes Neo4j elements created during testing.
-
-    This mix-in patches the :class:`familytree.storage.StorageLayer`
-    class so that the Neo4j manipulation methods inherited from
-    :class:`familytree.storage._Neo4jLayer` record the actions that
-    they have done.  Then, during annihilation, any modifications
-    to the data set are removed.
+    This mix-in monitors a :class:`requests.Session` instance
+    and records actions that need to be undone (e.g., creating
+    a new node, etc.).  Then, during annihilation, the recorded
+    actions are undone.
 
     Usage:
 
     .. code-block:: python
 
-       class MyTest(Neo4jTestingMixin, ActArrangeAssertTestCase):
-           @classmethod
-           def action(cls):
-               cls.storage = StorageLayer(uuid.uuid4().hex)
+       class MyTest(NeoTestingMixin, ActArrangeAssertTestCase):
 
            @classmethod
-           def annihilate(cls):
-               super().annihilate()
-               os.unlink(cls.storage.database_name)
+           def arrange(cls):
+               super().arrange()
+               cls.storage = StorageLayer(uuid.uuid4().hex)
+               cls.monitor_session(cls.storage._session)
+
+           @classmethod
+           def action(cls):
+               cls.whatever = cls.storage.create_something()
 
            def should_do_something(self):
                ...
+
+    If the ``create_something`` method issues an :http:method:`POST`
+    or :http:method:`PUT` request, then the resulting object will
+    be :http:method:`DELETE`\ d when the test is complete.  Recognizing
+    a response that came from an object creation is not as easy as it
+    should be, nor is it fullproof.
 
     The goal of this class is to make the previous test possible
     without having to complicate it with details surrounding cleaning
@@ -44,63 +43,58 @@ class Neo4jTestingMixin(InfectiousMixin):
 
     """
 
-    NEO4J_ROOT = 'http://localhost:7474/'
-
     @classmethod
     def arrange(cls):
         super().arrange()
-        cls._session = requests.Session()
-        cls._session.headers['Accept'] = 'application/json'
-
-        cls._cleanups = []
-        cls.infect_method(
-            storage.StorageLayer, '_create_label', cls._record_result)
-
-    @classmethod
-    def _record_result(cls, method, result):
-        if result.ok:  # pragma nocover
-            if method == storage._Neo4jLayer._create_label:
-                url = '/'.join((
-                    result.request.url,
-                    result.json()['property_keys'][0],
-                ))
-                cls._cleanups.append((cls._session.delete, (url, ), {}))
-        return result
+        cls._nodes_to_remove = []
+        cls._actions = None
 
     @classmethod
     def annihilate(cls):
         super().annihilate()
-        while cls._cleanups:
-            action, args, kwargs = cls._cleanups.pop()
-            action(*args, **kwargs)
+        processed = set()
+        for url in reversed(cls._nodes_to_remove):
+            if url not in processed:
+                requests.delete(url)
+                processed.add(url)
+        del cls._nodes_to_remove[:]
 
-    def ask_neo(self, url_path, **kwargs):
-        url = urllib.parse.urljoin(self.NEO4J_ROOT, url_path)
-        kwargs.setdefault('headers', {})
-        kwargs['headers']['Accept'] = 'application/json; charset=utf-8'
-        response = self._session.get(url, **kwargs)
-        assert response.ok
+    @classmethod
+    def monitor_session(cls, session):
+        """Insert a response hook to monitor `session`.
+
+        :param requests.Session session: the session to monitor.
+
+        """
+        session.hooks['response'].append(cls._process_neo_response)
+
+    @classmethod
+    def _process_neo_response(cls, response, **kwargs):
+        if response.ok and response.text:
+            if response.request.method in ('POST', 'PUT'):
+                body = response.json()
+                if body.get('self'):
+                    cls._nodes_to_remove.append(body['self'])
+                elif {'label', 'property_keys'}.issubset(body.keys()):
+                    # if only POST /.../index returned a self link!
+                    cls._nodes_to_remove.append(
+                        'http://localhost:7474/db/data'
+                        '/schema/index/{0}/{1}'.format(
+                            body['label'],
+                            body['property_keys'][0],
+                        )
+                    )
+
+    @property
+    def action_links(self):
+        if self._actions is None:
+            response = requests.get('http://localhost:7474/db/data')
+            response.raise_for_status()
+            self._actions = response.json()
+        return self._actions
+
+    def neo_get(self, action):
+        """Retrieve named Neo4j action."""
+        response = requests.get(self.action_links[action])
+        response.raise_for_status()
         return response.json()
-
-
-class SqliteLayerTestingMixin:
-
-    """
-    Remove a testing database when tests finish.
-    """
-
-    @classmethod
-    def arrange(cls):
-        """Generates :attr:`store_name`"""
-        super().arrange()
-        cls.store_name = uuid.uuid4().hex
-        cls.storage = None
-
-    @classmethod
-    def annihilate(cls):
-        """Removes the database if it exists."""
-        super().annihilate()
-        db_path = (cls.storage.database_name if cls.storage is not None
-                   else '{0}.ser'.format(cls.store_name))
-        if os.path.exists(db_path):  # pragma nocover
-            os.unlink(db_path)

@@ -10,15 +10,17 @@ hiding many of the details surrounding the underlying storage of objects
 and relationships.  The details are actually separated into separate base
 classes for each of the backend concerns.
 
-.. autoclass:: familytree.storage._SqliteLayer
+.. autoclass:: familytree.storage.NeoSession
    :members:
-   :special-members: __init__
-   :private-members:
 
-.. autoclass:: familytree.storage._Neo4jLayer
+HTTP Helpers
+------------
+
+.. autoclass:: familytree.storage.BaseUrlMixin
    :members:
-   :special-members: __init__
-   :private-members:
+
+.. autoclass:: familytree.storage.JsonSessionMixin
+   :members:
 
 
 Testing
@@ -29,6 +31,9 @@ testing classes that I've come up with.
 .. autoclass:: tests.ActArrangeAssertTestCase
    :members:
 
+.. autoclass:: tests.integration.NeoTestingMixin
+   :members:
+
 .. autoclass:: tests.PatchingMixin
    :members:
 
@@ -36,15 +41,6 @@ testing classes that I've come up with.
    :members:
 
 .. autoclass:: tests.TemporaryFileMixin
-   :members:
-
-.. autoclass:: tests.InfectiousMixin
-   :members:
-
-.. autoclass:: tests.integration.Neo4jTestingMixin
-   :members:
-
-.. autoclass:: tests.integration.SqliteLayerTestingMixin
    :members:
 
 .. _py.test: http://pytest.org/
