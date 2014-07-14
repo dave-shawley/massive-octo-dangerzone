@@ -424,15 +424,9 @@ class StorageLayer:
         if object_id is None:
             object_id = generate_hash(object_label, object_data)
 
-        response = self._session.get(
-            'label/{0}/nodes'.format(object_label),
-            params={'externalId': '"{0}"'.format(object_id)},
-        )
-        response.raise_for_status()
-
-        data = response.json()
-        if data:
-            return NeoNode(data[0])
+        node = self._session.find_object(object_label, object_id)
+        if node is not None:
+            return node
 
         full_data = object_data.copy()
         full_data['externalId'] = object_id
